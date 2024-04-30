@@ -37,6 +37,10 @@ dependencies:
   cupertino_icons: ^1.0.6
   url_launcher: ^6.2.6
   location: ^6.0.1
+  pull_to_refresh_flutter3: ^2.0.2
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.3
+  fluttertoast: ^8.2.5
 
 dev_dependencies:
   flutter_test:
