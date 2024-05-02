@@ -74,7 +74,7 @@ class _CustomDropdownWithSearchState extends State<CustomDropdownWithSearch> {
     _refreshController.loadComplete();
   }
   
-  Map<String, dynamic> selected = {};
+  Map<String, String> selected = {};
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +83,8 @@ class _CustomDropdownWithSearchState extends State<CustomDropdownWithSearch> {
           child: AbsorbPointer(
             child: Padding(padding: const EdgeInsets.all(0.0),
               child: 
+
+              // final Map<String, String> itemDetails = item.values.first;
               
               TextFormField(
   controller: TextEditingController(
@@ -122,8 +124,14 @@ class _CustomDropdownWithSearchState extends State<CustomDropdownWithSearch> {
   }
 
   void _showItemsList(BuildContext context) {
-  List<Map<String, dynamic>> filteredItems = listData;
-  print('filteredItems: $filteredItems');
+  List<Map<String, Map<String, String>>> filteredItems = listData.map((item) {
+  Map<String, Map<String, String>> newItem = {};
+  item.forEach((key, value) {
+    newItem[key] = Map<String, String>.from(value);
+  });
+  return newItem;
+}).toList();
+  print('_showItemsList');
 
   showModalBottomSheet(
     isScrollControlled: true,
@@ -197,7 +205,13 @@ suffixIcon: searchController.text.isNotEmpty
                     ? IconButton(
                         onPressed: () {
                           searchController.clear();
-                          filteredItems = widget.items;
+                          filteredItems = listData.map((item) {
+  Map<String, Map<String, String>> newItem = {};
+  item.forEach((key, value) {
+    newItem[key] = Map<String, String>.from(value);
+  });
+  return newItem;
+}).toList();
                           (context as Element).markNeedsBuild();
                           setState(() {
                             selected = {};
@@ -211,9 +225,14 @@ suffixIcon: searchController.text.isNotEmpty
                     : null,
               ),
                         onChanged: (String value) {
-                filteredItems = widget.items
-                    .where((element) => element['name']!.toLowerCase().contains(value.toLowerCase()))
-                    .toList();
+filteredItems= listData.map((item) {
+  Map<String, Map<String, String>> newItem = {};
+  item.forEach((key, value) {
+    newItem[key] = Map<String, String>.from(value);
+  });
+  return newItem;
+}).toList();
+
                 (context as Element).markNeedsBuild();
               },
         ),
@@ -226,30 +245,33 @@ suffixIcon: searchController.text.isNotEmpty
             onRefresh: _onRefresh,
             onLoading: _onLoading,
             child: 
-              ListView.builder(
-                itemCount: filteredItems.length,
-                itemBuilder: (context, index) {
-                  final item = filteredItems[index];
-                  return 
-                  ListTile(
-                    title: Text(
-                      "${item['name']} - ${item['number']}",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      setState(() {
-                        searchController.text = '';
-                        selected = item;
-                      });
-                        widget.onSelected!(item['name']);
-                    },
-                  );
-                },
-              ),
+            ListView.builder(
+  itemCount: filteredItems.length,
+  itemBuilder: (context, index) {
+    // Access the item directly, no need for index here
+    final Map<String, Map<String, String>> item = filteredItems[index];
+    // Get the inner map containing name and number
+    final Map<String, String> itemDetails = item.values.first;
+    
+    return ListTile(
+      title: Text(
+        "${itemDetails['name']} - ${itemDetails['number']}",
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+        ),
+      ),
+      onTap: () {
+        Navigator.of(context).pop();
+        setState(() {
+          searchController.text = '';
+          selected = itemDetails; // Consider using itemDetails instead if you only need name and number
+        });
+        widget.onSelected!(itemDetails['number']!);
+      },
+    );
+  },
+),
             ),
             ),
             // add patient button

@@ -34,28 +34,12 @@ Future<List<Map<String, dynamic>>> getPhoneNumberList() async {
     return await SharedPrefCache.listData();
   }
 
-Future<void> initializePhoneNumberList() async {
-  List<Map<String, Map<String, String>>> phoneNumbers = [
-    {
-      '0': {'name': 'Dad', 'number': '998938966698'},
-      '1': {'name': 'Mum', 'number': '998909157824'},
-      '2': {'name': 'Brother', 'number': '998938966698'},
-      '3': {'name': 'Sister', 'number': '998909157824'},
-    }
-          ];
-          for (var phoneNumber in phoneNumbers) {
-            await SharedPrefCache.storeData(phoneNumber);
-          }
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   bool p = await _checkPermissions();
 
   if (p == false) _requestPermission();
   
-  // initializePhoneNumberList();
-
   runApp(const MyApp());
     SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
@@ -77,7 +61,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TYLO',
+      title: 'Alert me',
       theme: _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),
       builder: (BuildContext c, Widget? w) {
@@ -86,7 +70,7 @@ class MyApp extends StatelessWidget {
           child: w!,
         );
       },
-      home: const MyHomePage(title: 'TYLO'),
+      home: const MyHomePage(title: 'Alert me'),
     );
   }
 }
@@ -100,16 +84,18 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   final Location location = Location();
   final TextEditingController phoneNumberController = TextEditingController();
   final TextEditingController newPatientNameController = TextEditingController();
   final TextEditingController birthYearController = TextEditingController();
   List<Map<String, dynamic>> phoneNumbers = [];
+  StreamSubscription<LocationData>? _locationSubscription;
 
   @override
 void initState() {
   super.initState();
+  WidgetsBinding.instance.addObserver(this);
   data();
 }
 
@@ -121,9 +107,56 @@ void data() async {
 @override
 void dispose() {
   phoneNumberController.dispose();
+  WidgetsBinding.instance.removeObserver(this);
+      _locationSubscription?.cancel();
+    setState(() {
+      _locationSubscription = null;
+    });
   super.dispose();
 }
 
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _stopLocationUpdates(); // Implement this method
+    }
+  }
+
+  Future<void> _listenLocation() async {
+    debugList.add('Listening to location');
+
+    _locationSubscription =
+        location.onLocationChanged.handleError((dynamic err) {
+      if (err is PlatformException) {
+        setState(() {
+          _error = err.code;
+        });
+      }
+      _locationSubscription?.cancel();
+      setState(() {
+        _locationSubscription = null;
+      });
+    }).listen((currentLocation) {
+      setState(() {
+        _error = null;
+
+        _location = currentLocation;
+        debugList.add('Update location');
+      });
+    });
+    setState(() {});
+  }
+
+Future<void> _stopLocationUpdates() async {
+  if (_locationSubscription != null) {
+    await _locationSubscription!.cancel();
+    _locationSubscription = null;
+        setState(() {
+      _locationSubscription = null;
+    });
+  }
+}
 
 
   bool _loading = false;
@@ -175,15 +208,17 @@ void dispose() {
 
     print('function called');
 
-    number ??= '';
-    // final Uri uri = Uri(scheme: 'sms', path: number);
+
     if (_location != null) {
       final double latitude = _location!.latitude!;
         final double longitude = _location!.longitude!;
-      final String url = 'https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}';
+      // final String url = 'https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}';
+      final String url = 'https://www.google.com/maps?q=${latitude},${longitude}';
 
-      final encodedBody = Uri.encodeComponent('Here is my location: $url');
-      final Uri uri = Uri.parse('sms:/$number${separator}body=$encodedBody');
+      // final encodedBody = Uri.encodeComponent('Here is my location: $url');
+      final encodedBody = Uri.encodeFull('Here is my location: $url');
+      final Uri uri = Uri.parse('sms:/${phoneNumberController.text}${separator}body=$encodedBody');
+      // final Uri uri = Uri.parse('sms:/${phoneNumberController.text}${separator}body=$encodedBody');
       print('URI: $uri');
       debugList.add('URI: $uri');
 
@@ -363,11 +398,33 @@ CustomTextFormField(
     );
 }
 
+void _startLocationUpdates() async {
+  // Check and request permissions if needed (similar to your existing code)
+  bool p = await _checkPermissions();
+  if (p == false) {
+    await _requestPermission();
+  }
+
+  // Start listening to location updates
+  await _listenLocation();
+
+  // Optional: Show a message or indicator that location tracking has started
+  showToast(message: "Location tracking started", bgColor: Colors.green[900]);
+}
+
   @override
   Widget build(BuildContext context) {
     // int? selectedTime; // Store the selected time in minutes
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.white,
+    onPressed: _startLocationUpdates, // Method to start updates
+    child: Icon(
+      Icons.location_searching,
+      color: Colors.black
+    ),
+  ),
       backgroundColor: const Color.fromARGB(255, 31, 33, 38),
       appBar: AppBar(
         foregroundColor: Colors.white,
